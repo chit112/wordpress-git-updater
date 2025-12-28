@@ -7,10 +7,18 @@ if (!defined('ABSPATH')) {
 class Git_Updater_Settings
 {
 
+    private $installer;
+
     public function __construct()
     {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
+        add_action('admin_post_git_updater_install', array($this, 'handle_install'));
+    }
+
+    public function set_installer($installer)
+    {
+        $this->installer = $installer;
     }
 
     public function add_admin_menu()
@@ -58,6 +66,15 @@ class Git_Updater_Settings
         ?>
         <div class="wrap">
             <h1>Git Updater Settings</h1>
+            
+            <?php if (isset($_GET['install_status'])): ?>
+                <?php if ($_GET['install_status'] === 'success'): ?>
+                    <div class="notice notice-success is-dismissible"><p>Plugin installed successfully!</p></div>
+                <?php else: ?>
+                    <div class="notice notice-error is-dismissible"><p>Installation failed: <?php echo esc_html(urldecode($_GET['message'])); ?></p></div>
+                <?php endif; ?>
+            <?php endif; ?>
+
             <form method="post" action="options.php">
                 <?php
                 settings_fields('git_updater_options');
@@ -65,8 +82,73 @@ class Git_Updater_Settings
                 submit_button();
                 ?>
             </form>
+
+            <hr>
+
+            <h2>Install New Plugin</h2>
+            <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                <input type="hidden" name="action" value="git_updater_install">
+                <?php wp_nonce_field('git_updater_install_nonce', 'git_updater_nonce'); ?>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">GitHub Repository</th>
+                        <td>
+                            <input type="text" name="repo" placeholder="owner/repo" class="regular-text" required>
+                            <p class="description">e.g. <code>Let-s-Roll/wordpress-admin-ui</code></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Branch/Tag</th>
+                        <td>
+                            <input type="text" name="branch" placeholder="main" class="regular-text">
+                            <p class="description">Leave empty for <code>main</code>.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Target Folder Name</th>
+                        <td>
+                            <input type="text" name="slug" placeholder="plugin-slug" class="regular-text" required>
+                            <p class="description">The folder name in <code>wp-content/plugins</code>.</p>
+                        </td>
+                    </tr>
+                </table>
+                <?php submit_button('Install Plugin'); ?>
+            </form>
         </div>
         <?php
+    }
+
+    public function handle_install()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        check_admin_referer('git_updater_install_nonce', 'git_updater_nonce');
+
+        $repo = sanitize_text_field($_POST['repo']);
+        $branch = sanitize_text_field($_POST['branch']);
+        $slug = sanitize_text_field($_POST['slug']);
+
+        if (empty($repo) || empty($slug)) {
+            wp_redirect(add_query_arg(array('page' => 'git-updater', 'install_status' => 'error', 'message' => 'Missing required fields'), admin_url('options-general.php')));
+            exit;
+        }
+
+        if ($this->installer) {
+            $result = $this->installer->install($repo, $branch, $slug);
+            if (is_wp_error($result)) {
+                $message = $result->get_error_message();
+                wp_redirect(add_query_arg(array('page' => 'git-updater', 'install_status' => 'error', 'message' => urlencode($message)), admin_url('options-general.php')));
+                exit;
+            }
+        } else {
+             wp_redirect(add_query_arg(array('page' => 'git-updater', 'install_status' => 'error', 'message' => 'Installer not available'), admin_url('options-general.php')));
+             exit;
+        }
+
+        wp_redirect(add_query_arg(array('page' => 'git-updater', 'install_status' => 'success'), admin_url('options-general.php')));
+        exit;
     }
 
     public function render_token_field()
