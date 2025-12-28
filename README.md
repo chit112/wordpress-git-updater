@@ -23,7 +23,9 @@ A Personal Access Token is **required** for private repositories and recommended
 
 1.  Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens).
 2.  Generate a new token (Classic).
-3.  **Scopes**: select `repo` (Full control of private repositories) if you need private repo access. For public only, no scopes are strictly necessary, but `public_repo` is good.
+3.  **Scopes**:
+    *   **For Private Repositories**: Check `repo` (Full control of private repositories). This is the only way to access private plugin code.
+    *   **For Public Repositories Only**: Check `public_repo` (Access public repositories).
 4.  Copy the token and paste it into the **GitHub Personal Access Token** field in the plugin settings.
 
 ### 2. Repositories Map
