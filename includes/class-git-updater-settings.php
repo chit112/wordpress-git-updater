@@ -14,6 +14,7 @@ class Git_Updater_Settings
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_post_git_updater_install', array($this, 'handle_install'));
+        add_action('admin_post_git_updater_save_repos', array($this, 'handle_save_repos')); // Added hook
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
     }
 
@@ -36,7 +37,7 @@ class Git_Updater_Settings
             'Git Updater',
             'manage_options',
             'git-updater',
-            array($this, 'display_settings_page')
+            array($this, 'create_admin_page') // Updated to call the new method name
         );
     }
 
@@ -69,83 +70,160 @@ class Git_Updater_Settings
         );
     }
 
-    public function display_settings_page()
+    public function create_admin_page() // Renamed from display_settings_page
     {
+        $this->options = get_option('git_updater_token');
         ?>
         <div class="wrap">
-            <h1>Git Updater Settings</h1>
-
-            <?php if (isset($_GET['install_status'])): ?>
-                <?php if ($_GET['install_status'] === 'success'): ?>
-                    <div class="notice notice-success is-dismissible">
-                        <p>Plugin installed successfully!</p>
-                    </div>
-                <?php else: ?>
-                    <div class="notice notice-error is-dismissible">
-                        <p>Installation failed:
-                            <?php echo isset($_GET['message']) ? esc_html(urldecode($_GET['message'])) : 'Unknown error'; ?>
-                        </p>
-                    </div>
-                <?php endif; ?>
-            <?php endif; ?>
+            <h1>🚀 Git Updater</h1>
+            <p>
+                Manage your private GitHub plugins with ease.
+                <a href="https://github.com/chit112/wordpress-git-updater" target="_blank">📖 Documentation</a> |
+                <a href="https://github.com/chit112/wordpress-git-updater/issues" target="_blank">🐛 Report Issue</a>
+            </p>
+            <hr>
 
             <form method="post" action="options.php">
                 <?php
-                settings_fields('git_updater_options');
-                do_settings_sections('git-updater');
-                submit_button();
+                settings_fields('git_updater_option_group');
                 ?>
-            </form>
 
-            <h2>Installation Logs</h2>
-            <?php
-            if (isset($_POST['btn_clear_logs'])) {
-                if (current_user_can('manage_options')) {
-                    Git_Updater_Logger::clear();
-                    echo '<div class="notice notice-success is-dismissible"><p>Logs cleared.</p></div>';
-                }
-            }
-            $logs = Git_Updater_Logger::get_logs();
-            $log_content = implode("\n", $logs);
-            ?>
-            <form method="post">
-                <textarea class="large-text code" rows="15" readonly><?php echo esc_textarea($log_content); ?></textarea>
-                <p>
-                    <input type="submit" name="btn_clear_logs" class="button" value="Clear Logs" />
-                </p>
+                <!-- Section 1: Authentication -->
+                <div class="card" style="max-width: 100%; padding: 20px; margin-top: 20px;">
+                    <h2>🔑 1. GitHub Authentication</h2>
+                    <p class="description">
+                        You need a Personal Access Token (PAT) to access private repositories.
+                        <a href="https://github.com/settings/tokens" target="_blank">Generate one here</a> (select
+                        <code>repo</code> scope).
+                    </p>
+                    <table class="form-table">
+                        <tr valign="top">
+                            <th scope="row">GitHub Access Token</th>
+                            <td>
+                                <input type="password" name="git_updater_token[token]"
+                                    value="<?php echo isset($this->options['token']) ? esc_attr($this->options['token']) : ''; ?>"
+                                    class="regular-text" />
+                            </td>
+                        </tr>
+                    </table>
+                    <?php submit_button('Save Token'); ?>
+                </div>
             </form>
 
             <hr>
 
-            <h2>Install New Plugin</h2>
-            <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
-                <input type="hidden" name="action" value="git_updater_install">
-                <?php wp_nonce_field('git_updater_install_nonce', 'git_updater_nonce'); ?>
-                <table class="form-table">
-                    <tr>
-                        <th scope="row">GitHub Repository</th>
-                        <td>
-                            <input type="text" name="repo" placeholder="owner/repo" class="regular-text" required>
-                            <p class="description">e.g. <code>Let-s-Roll/wordpress-admin-ui</code></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row">Branch/Tag</th>
-                        <td>
-                            <input type="text" name="branch" placeholder="main" class="regular-text">
-                            <p class="description">Leave empty for <code>main</code>.</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row">Target Folder Name</th>
-                        <td>
-                            <input type="text" name="slug" placeholder="plugin-slug" class="regular-text" required>
-                            <p class="description">The folder name in <code>wp-content/plugins</code>.</p>
-                        </td>
-                    </tr>
-                </table>
-                <?php submit_button('Install Plugin'); ?>
-            </form>
+            <!-- Section 2: Install New Plugin -->
+            <div class="card" style="max-width: 100%; padding: 20px; margin-top: 20px;">
+                <h2>📦 2. Install New Plugin</h2>
+                <p class="description">Directly install a plugin from a GitHub URL or short slug. It will automatically be added
+                    to your monitored list below.</p>
+
+                <?php
+                if (isset($_GET['message'])) {
+                    // ... (handled by admin_notices usually, but kept here for inline feedback if needed)
+                }
+                ?>
+
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <input type="hidden" name="action" value="git_updater_install_plugin">
+                    <?php wp_nonce_field('git_updater_install_plugin_action', 'git_updater_install_nonce'); ?>
+
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row"><label for="install_repo">Repository</label></th>
+                            <td>
+                                <input name="repo" type="text" id="install_repo" value="" class="regular-text"
+                                    placeholder="https://github.com/owner/repo" required>
+                                <p class="description">Full URL or <code>owner/repo</code>.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="install_branch">Branch</label></th>
+                            <td>
+                                <input name="branch" type="text" id="install_branch" value="" class="regular-text"
+                                    placeholder="main">
+                                <p class="description">Leave empty for <code>main</code>.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="install_target">Target Slug</label></th>
+                            <td>
+                                <input name="target_slug" type="text" id="install_target" value="" class="regular-text"
+                                    placeholder="my-plugin-folder" required>
+                                <p class="description">The folder name for the plugin.</p>
+                            </td>
+                        </tr>
+                    </table>
+                    <?php submit_button('Install Plugin', 'primary', 'btn_install_plugin'); ?>
+                </form>
+            </div>
+
+            <hr>
+
+            <!-- Section 3: Monitored Repositories -->
+            <div class="card" style="max-width: 100%; padding: 20px; margin-top: 20px;">
+                <h2>📝 3. Installed & Monitored Plugins</h2>
+                <p class="description">These plugins are currently being monitored for updates. You can also manually add
+                    existing plugins here.</p>
+
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                    <input type="hidden" name="action" value="git_updater_save_repos">
+                    <?php wp_nonce_field('git_updater_save_repos', 'git_updater_repos_nonce'); ?>
+                    <table class="widefat fixed" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th><strong>Plugin Slug</strong> <span class="description">(Folder name)</span></th>
+                                <th><strong>Repository</strong> <span class="description">(owner/repo)</span></th>
+                                <th><strong>Branch</strong> <span class="description">(Default: main)</span></th>
+                                <th><strong>Actions</strong></th>
+                            </tr>
+                        </thead>
+                        <tbody id="git-updater-repos-list">
+                            <?php
+                            $repos = get_option('git_updater_repos', array());
+                            if (!empty($repos)) {
+                                foreach ($repos as $index => $repo) {
+                                    $this->render_repo_row($index, $repo);
+                                }
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                    <p>
+                        <!-- Manual add removed for safety -->
+                        <input type="submit" name="btn_save_repos" class="button button-primary" value="Save Changes" />
+                    </p>
+                </form>
+            </div>
+
+            <hr>
+
+            <!-- Troubleshooting -->
+            <div class="card" style="max-width: 100%; padding: 20px; margin-top: 20px; border-left: 4px solid #ffba00;">
+                <details>
+                    <summary style="cursor: pointer; font-weight: bold; font-size: 1.1em;">📝 Troubleshooting & Logs (Click to
+                        expand)</summary>
+                    <div style="margin-top: 15px;">
+                        <?php
+                        if (isset($_POST['btn_clear_logs'])) {
+                            if (current_user_can('manage_options')) {
+                                Git_Updater_Logger::clear();
+                                echo '<div class="notice notice-success is-dismissible"><p>Logs cleared.</p></div>';
+                            }
+                        }
+                        $logs = Git_Updater_Logger::get_logs();
+                        $log_content = implode("\n", $logs);
+                        ?>
+                        <form method="post">
+                            <textarea class="large-text code" rows="15"
+                                readonly><?php echo esc_textarea($log_content); ?></textarea>
+                            <p>
+                                <input type="submit" name="btn_clear_logs" class="button" value="Clear Logs" />
+                            </p>
+                        </form>
+                    </div>
+                </details>
+            </div>
         </div>
         <?php
     }
@@ -222,6 +300,60 @@ class Git_Updater_Settings
             <?php endforeach; ?>
         </div>
         <button class="button" id="git-updater-add-repo">Add Repository</button>
+        <?php
+    }
+    public function handle_save_repos()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        check_admin_referer('git_updater_save_repos', 'git_updater_repos_nonce');
+
+        if (isset($_POST['git_updater_repos']) && is_array($_POST['git_updater_repos'])) {
+            $cleaned_repos = array();
+            foreach ($_POST['git_updater_repos'] as $repo) {
+                if (!empty($repo['plugin']) && !empty($repo['repo'])) {
+                    $cleaned_repos[] = array(
+                        'plugin' => sanitize_text_field($repo['plugin']),
+                        'repo' => sanitize_text_field($repo['repo']),
+                        'branch' => sanitize_text_field($repo['branch'])
+                    );
+                }
+            }
+            update_option('git_updater_repos', $cleaned_repos);
+        } else {
+            update_option('git_updater_repos', array());
+        }
+
+        wp_redirect(add_query_arg('page', 'git-updater', admin_url('options-general.php')));
+        exit;
+    }
+
+    public function render_repo_row($index, $repo)
+    {
+        ?>
+        <tr>
+            <td>
+                <code><?php echo esc_html($repo['plugin']); ?></code>
+                <input type="hidden" name="git_updater_repos[<?php echo $index; ?>][plugin]"
+                    value="<?php echo esc_attr($repo['plugin']); ?>" />
+            </td>
+            <td>
+                <a href="https://github.com/<?php echo esc_attr($repo['repo']); ?>"
+                    target="_blank"><?php echo esc_html($repo['repo']); ?></a>
+                <input type="hidden" name="git_updater_repos[<?php echo $index; ?>][repo]"
+                    value="<?php echo esc_attr($repo['repo']); ?>" />
+            </td>
+            <td>
+                <code><?php echo isset($repo['branch']) ? esc_html($repo['branch']) : 'main'; ?></code>
+                <input type="hidden" name="git_updater_repos[<?php echo $index; ?>][branch]"
+                    value="<?php echo isset($repo['branch']) ? esc_attr($repo['branch']) : 'main'; ?>" />
+            </td>
+            <td>
+                <button class="button git-updater-remove-repo">Remove</button>
+            </td>
+        </tr>
         <?php
     }
 }
