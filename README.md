@@ -11,7 +11,7 @@
 
 ## Installation
 
-1. Download the `git-updater` plugin zip.
+1. Download the `git-updater` plugin zip: [Download Latest Zip](https://github.com/chit112/wordpress-git-updater/archive/refs/heads/main.zip)
 2. Go to your WordPress Dashboard > **Plugins** > **Add New** > **Upload Plugin**.
 3. Upload and activate the plugin.
 
