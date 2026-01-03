@@ -85,7 +85,7 @@ class Git_Updater_Settings
 
             <form method="post" action="options.php">
                 <?php
-                settings_fields('git_updater_option_group');
+                settings_fields('git_updater_options');
                 ?>
 
                 <!-- Section 1: Authentication -->
@@ -125,8 +125,8 @@ class Git_Updater_Settings
                 ?>
 
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                    <input type="hidden" name="action" value="git_updater_install_plugin">
-                    <?php wp_nonce_field('git_updater_install_plugin_action', 'git_updater_install_nonce'); ?>
+                    <input type="hidden" name="action" value="git_updater_install">
+                    <?php wp_nonce_field('git_updater_install', 'git_updater_nonce'); ?>
 
                     <table class="form-table">
                         <tr>
@@ -234,7 +234,7 @@ class Git_Updater_Settings
             wp_die('Unauthorized');
         }
 
-        check_admin_referer('git_updater_install_nonce', 'git_updater_nonce');
+        check_admin_referer('git_updater_install', 'git_updater_nonce');
 
         $repo = sanitize_text_field($_POST['repo']);
 
@@ -244,7 +244,7 @@ class Git_Updater_Settings
         $repo = trim($repo, '/');
 
         $branch = sanitize_text_field($_POST['branch']);
-        $slug = sanitize_text_field($_POST['slug']);
+        $slug = sanitize_text_field($_POST['target_slug']);
 
         if (empty($repo) || empty($slug)) {
             wp_redirect(add_query_arg(array('page' => 'git-updater', 'install_status' => 'error', 'message' => 'Missing required fields'), admin_url('options-general.php')));

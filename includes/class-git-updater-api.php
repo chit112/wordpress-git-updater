@@ -16,7 +16,10 @@ class Git_Updater_API
 
     public function get_token()
     {
-        return $this->token;
+        if (is_array($this->token) && isset($this->token['token'])) {
+            return $this->token['token'];
+        }
+        return is_string($this->token) ? $this->token : '';
     }
 
     public function get_file_content($repo, $path, $branch)
