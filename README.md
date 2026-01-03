@@ -34,22 +34,19 @@ To access private repositories (and to increase API limits for public ones), you
 
 ## Usage
 
-### Adding a Repository
-1. Go to **Settings** > **Git Updater**.
-2. Under "Monitored Repositories", click **Add Repo**.
-3. Enter the details:
-    - **Plugin Slug**: The folder name of the plugin (e.g., `my-custom-plugin`).
-    - **Repository**: The GitHub repository in `owner/repo` format (e.g., `chit112/wordpress-git-updater`).
-    - **Branch**: (Optional) The branch to track (defaults to `main`).
-4. Click **Save Settings**.
-
-### Installing a New Plugin
-1. On the same settings page, browse to the "Install New Plugin" section.
+### Installing Plugins
+1. Go to **Settings** > **Git Updater** > **Install New Plugin**.
 2. **Repository**: Enter the full URL (e.g., `https://github.com/Let-s-Roll/wordpress-admin-ui`) or `owner/repo`.
 3. **Branch**: (Optional) Leave empty for `main` or specify a branch.
 4. **Target Slug**: The folder name you want for the plugin (e.g., `lets-roll-admin`).
 5. Click **Install Plugin**.
-6. Check the **Logs** section at the bottom if you encounter any issues.
+6. The plugin will be installed and automatically added to the monitored list.
+
+### Managing Monitored Plugins
+The **Installed & Monitored Plugins** list is read-only to ensure safety and integrity.
+- **Monitoring**: All installed plugins in this list are automatically checked for updates.
+- **Changing Branch**: If you need to switch branches (e.g., test `develop`), **Remove** the plugin from the list and **Re-install** it with the desired branch.
+- **Removing**: Click **Remove** to stop monitoring a plugin (this does not delete the plugin files).
 
 ### Updating Plugins
 Once a repository is added to the "Monitored Repositories" list:
