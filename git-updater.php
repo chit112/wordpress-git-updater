@@ -1,11 +1,13 @@
 <?php
 /**
- * Plugin Name: Git Updater
- * Plugin URI: https://example.com/git-updater
- * Description: Keeps plugins up to date from GitHub repositories (public and private).
- * Version: 1.0.0
- * Author: Antigravity
- * License: GPL2
+ * Plugin Name:       Git Updater
+ * Plugin URI:        https://github.com/chit112/wordpress-git-updater
+ * Description:       A plugin to update other WordPress plugins directly from GitHub repositories (private or public).
+ * Version:           1.0.0
+ * Author:            Rune Brimer
+ * Author URI:        https://github.com/chit112
+ * License:           GPL v2 or later
+ * Text Domain:       git-updater
  */
 
 if (!defined('ABSPATH')) {
@@ -17,6 +19,7 @@ define('GIT_UPDATER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-settings.php';
+require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-logger.php';
 require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-api.php';
 require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-upgrader.php';
 require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-installer.php';

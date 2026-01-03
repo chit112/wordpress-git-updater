@@ -14,6 +14,14 @@ class Git_Updater_Settings
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_post_git_updater_install', array($this, 'handle_install'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+    }
+
+    public function enqueue_scripts($hook)
+    {
+        if (isset($_GET['page']) && $_GET['page'] === 'git-updater') {
+            wp_enqueue_script('git-updater-settings', GIT_UPDATER_PLUGIN_URL . 'assets/settings.js', array(), '1.0', true);
+        }
     }
 
     public function set_installer($installer)
@@ -66,12 +74,18 @@ class Git_Updater_Settings
         ?>
         <div class="wrap">
             <h1>Git Updater Settings</h1>
-            
+
             <?php if (isset($_GET['install_status'])): ?>
                 <?php if ($_GET['install_status'] === 'success'): ?>
-                    <div class="notice notice-success is-dismissible"><p>Plugin installed successfully!</p></div>
+                    <div class="notice notice-success is-dismissible">
+                        <p>Plugin installed successfully!</p>
+                    </div>
                 <?php else: ?>
-                    <div class="notice notice-error is-dismissible"><p>Installation failed: <?php echo esc_html(urldecode($_GET['message'])); ?></p></div>
+                    <div class="notice notice-error is-dismissible">
+                        <p>Installation failed:
+                            <?php echo isset($_GET['message']) ? esc_html(urldecode($_GET['message'])) : 'Unknown error'; ?>
+                        </p>
+                    </div>
                 <?php endif; ?>
             <?php endif; ?>
 
@@ -81,6 +95,24 @@ class Git_Updater_Settings
                 do_settings_sections('git-updater');
                 submit_button();
                 ?>
+            </form>
+
+            <h2>Installation Logs</h2>
+            <?php
+            if (isset($_POST['btn_clear_logs'])) {
+                if (current_user_can('manage_options')) {
+                    Git_Updater_Logger::clear();
+                    echo '<div class="notice notice-success is-dismissible"><p>Logs cleared.</p></div>';
+                }
+            }
+            $logs = Git_Updater_Logger::get_logs();
+            $log_content = implode("\n", $logs);
+            ?>
+            <form method="post">
+                <textarea class="large-text code" rows="15" readonly><?php echo esc_textarea($log_content); ?></textarea>
+                <p>
+                    <input type="submit" name="btn_clear_logs" class="button" value="Clear Logs" />
+                </p>
             </form>
 
             <hr>
@@ -127,6 +159,12 @@ class Git_Updater_Settings
         check_admin_referer('git_updater_install_nonce', 'git_updater_nonce');
 
         $repo = sanitize_text_field($_POST['repo']);
+
+        // Clean up repo input if user pasted full URL
+        $repo = preg_replace('/^(?:https?:\/\/)?(?:www\.)?github\.com\//', '', $repo);
+        $repo = preg_replace('/\.git$/', '', $repo);
+        $repo = trim($repo, '/');
+
         $branch = sanitize_text_field($_POST['branch']);
         $slug = sanitize_text_field($_POST['slug']);
 
@@ -143,8 +181,8 @@ class Git_Updater_Settings
                 exit;
             }
         } else {
-             wp_redirect(add_query_arg(array('page' => 'git-updater', 'install_status' => 'error', 'message' => 'Installer not available'), admin_url('options-general.php')));
-             exit;
+            wp_redirect(add_query_arg(array('page' => 'git-updater', 'install_status' => 'error', 'message' => 'Installer not available'), admin_url('options-general.php')));
+            exit;
         }
 
         wp_redirect(add_query_arg(array('page' => 'git-updater', 'install_status' => 'success'), admin_url('options-general.php')));
@@ -162,7 +200,6 @@ class Git_Updater_Settings
 
     public function render_repos_field()
     {
-        // Placeholder for repeater field
         $repos = get_option('git_updater_repos', array());
         if (!is_array($repos)) {
             $repos = array();
@@ -170,43 +207,21 @@ class Git_Updater_Settings
 
         ?>
         <div id="git-updater-repos-wrapper">
-            <p class="description">Map plugin directory names to GitHub repositories (e.g., <code>my-plugin</code> ->
-                <code>owner/repo</code>).
-            </p>
-            <?php if (empty($repos)): ?>
-                <div class="repo-row">
-                    <input type="text" name="git_updater_repos[0][plugin]" placeholder="Plugin Directory Name" value="" />
-                    <input type="text" name="git_updater_repos[0][repo]" placeholder="owner/repo" value="" />
+            <p class="description">Map plugin directory names to GitHub repositories.</p>
+            <?php foreach ($repos as $repo): ?>
+                <div class="repo-row" style="margin-bottom: 10px;">
+                    <input type="text" name="git_updater_repos[][plugin]" placeholder="Plugin Directory Name"
+                        value="<?php echo esc_attr($repo['plugin']); ?>" class="regular-text" style="width: 250px;" />
+                    <input type="text" name="git_updater_repos[][repo]" placeholder="owner/repo"
+                        value="<?php echo esc_attr($repo['repo']); ?>" class="regular-text" style="width: 250px;" />
+                    <input type="text" name="git_updater_repos[][branch]" placeholder="Branch (default: main)"
+                        value="<?php echo isset($repo['branch']) ? esc_attr($repo['branch']) : ''; ?>" class="regular-text"
+                        style="width: 150px;" />
+                    <button class="button git-updater-remove-repo">Remove</button>
                 </div>
-            <?php else: ?>
-                <?php foreach ($repos as $index => $repo): ?>
-                    <div class="repo-row">
-                        <input type="text" name="git_updater_repos[<?php echo $index; ?>][plugin]" placeholder="Plugin Directory Name"
-                            value="<?php echo esc_attr($repo['plugin']); ?>" />
-                        <input type="text" name="git_updater_repos[<?php echo $index; ?>][repo]" placeholder="owner/repo"
-                            value="<?php echo esc_attr($repo['repo']); ?>" />
-                        <input type="text" name="git_updater_repos[<?php echo $index; ?>][branch]" placeholder="Branch (default: main)"
-                            value="<?php echo isset($repo['branch']) ? esc_attr($repo['branch']) : ''; ?>" />
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-            <!-- TODO: Add JavaScript to add more rows dynamically if needed, 
-                 for now we just rely on saving and maybe adding an empty row if the last one is filled, 
-                 or a dedicated "Add" button handling in a real JS file. 
-                 For MVP, let's keep it simple or allow entering JSON/TextArea for easier bulk edit if this UI gets complex.
-                 Let's stick to a Text Area for JSON or line-separated list for simplicity in v1 if JS is too much, 
-                 but a simple row is better. 
-            -->
-            <p><em>Save to add more. (Basic implementation)</em></p>
-            <div class="repo-row">
-                <input type="text" name="git_updater_repos[<?php echo count($repos); ?>][plugin]"
-                    placeholder="New Plugin Directory Name" value="" />
-                <input type="text" name="git_updater_repos[<?php echo count($repos); ?>][repo]" placeholder="owner/repo"
-                    value="" />
-                <input type="text" name="git_updater_repos[<?php echo count($repos); ?>][branch]"
-                    placeholder="Branch (default: main)" value="" />
-            </div>
+            <?php endforeach; ?>
         </div>
+        <button class="button" id="git-updater-add-repo">Add Repository</button>
         <?php
     }
 }

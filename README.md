@@ -1,47 +1,67 @@
-# Git Updater
+# Git Updater for WordPress
 
-A WordPress plugin to keep your plugins up to date directly from GitHub repositories. Supports both public and private repositories.
+**Git Updater** allows you to easily install and update WordPress plugins directly from GitHub repositories, supporting both public and private repositories.
 
 ## Features
-
-- **Public & Private Repos**: Update plugins from any GitHub repository.
-- **Private Repo Support**: Authenticates using a Personal Access Token (PAT).
-- **Branch Selection**: Choose which branch to pull updates from (default: `main`).
+- **Private Repository Support**: Authenticate using a GitHub Personal Access Token (PAT).
+- **Branch Selection**: Install plugins from any specific branch (defaults to `main`).
+- **Auto-Updates**: Integrates with WordPress's native update system.
+- **Robust Installation**: Handles filesystem permissions automatically with native PHP fallbacks.
+- **Verbose Logging**: Debug installation issues with a built-in log viewer.
 
 ## Installation
 
-1.  Download the repository as a ZIP file.
-2.  Upload it to your WordPress site via **Plugins > Add New > Upload Plugin**.
-3.  Activate **Git Updater**.
+1. Download the `git-updater` plugin zip.
+2. Go to your WordPress Dashboard > **Plugins** > **Add New** > **Upload Plugin**.
+3. Upload and activate the plugin.
 
 ## Configuration
 
-Go to **Settings > Git Updater** to configure the plugin.
+### 1. Generate a GitHub Token
+To access private repositories (and to increase API limits for public ones), you need a GitHub Personal Access Token.
 
-### 1. GitHub Token (Optional but Recommended)
-A Personal Access Token is **required** for private repositories and recommended for public ones to avoid API rate limits.
+1. Go to [GitHub Settings > Developer Settings > Personal Access Tokens > Tokens (classic)](https://github.com/settings/tokens).
+2. Click **Generate new token (classic)**.
+3. Give it a Note (e.g., "WordPress Git Updater").
+4. Select the `repo` scope (for private repositories) or `public_repo` (for public only).
+5. Click **Generate token**.
+6. **Copy the token immediately**.
 
-1.  Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens).
-2.  Generate a new token (Classic).
-3.  **Scopes**:
-    *   **For Private Repositories**: Check `repo` (Full control of private repositories). This is the only way to access private plugin code.
-    *   **For Public Repositories Only**: Check `public_repo` (Access public repositories).
-4.  Copy the token and paste it into the **GitHub Personal Access Token** field in the plugin settings.
-
-### 2. Repositories Map
-Map your installed plugins to their GitHub repositories.
-
-*   **Plugin Directory Name**: The folder name of the plugin in `wp-content/plugins` (e.g., `my-custom-plugin`).
-*   **Repository**: The `owner/repo` string from GitHub (e.g., `antigravity/my-custom-plugin`).
-*   **Branch**: The branch to track (default: `main`).
+### 2. Configure the Plugin
+1. In your WordPress Dashboard, go to **Settings** > **Git Updater**.
+2. Paste your **GitHub Token** in the "GitHub Access Token" field.
+3. Click **Save Settings**.
 
 ## Usage
 
-1.  **Tag a Release**: On GitHub, create a new Release (e.g., `v1.0.1`).
-2.  **Check for Updates**: In WordPress, go to **Dashboard > Updates** and click **Check Again**.
-3.  **Update**: If a new version is detected, it will appear in the list of available updates. Click **Update Now**.
+### Adding a Repository
+1. Go to **Settings** > **Git Updater**.
+2. Under "Monitored Repositories", click **Add Repo**.
+3. Enter the details:
+    - **Plugin Slug**: The folder name of the plugin (e.g., `my-custom-plugin`).
+    - **Repository**: The GitHub repository in `owner/repo` format (e.g., `chit112/wordpress-git-updater`).
+    - **Branch**: (Optional) The branch to track (defaults to `main`).
+4. Click **Save Settings**.
 
-## Requirements
+### Installing a New Plugin
+1. On the same settings page, browse to the "Install New Plugin" section.
+2. **Repository**: Enter the full URL (e.g., `https://github.com/Let-s-Roll/wordpress-admin-ui`) or `owner/repo`.
+3. **Branch**: (Optional) Leave empty for `main` or specify a branch.
+4. **Target Slug**: The folder name you want for the plugin (e.g., `lets-roll-admin`).
+5. Click **Install Plugin**.
+6. Check the **Logs** section at the bottom if you encounter any issues.
 
-*   WordPress 5.0+
-*   PHP 7.4+
+### Updating Plugins
+Once a repository is added to the "Monitored Repositories" list:
+1. The plugin will check GitHub for updates every 12 hours (standard WordPress interval).
+2. If the `Version` header in the remote `main` branch is higher than your installed version, an update will appear in **Dashboard** > **Updates**.
+3. Click update just like a normal plugin!
+
+## Troubleshooting
+- **Installation Failed?**: Check the "Installation Logs" text area at the bottom of the Settings page.
+- **GitHub Token**: Ensure your token has the correct `repo` permissions.
+- **File Permissions**: The plugin attempts multiple methods (WP Filesystem, Native PHP) to handle file moves. If it fails, ensure your `wp-content/plugins` folder is writable by the web server.
+
+## Author
+Rune Brimer
+[https://github.com/chit112/wordpress-git-updater](https://github.com/chit112/wordpress-git-updater)

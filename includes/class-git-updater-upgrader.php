@@ -34,53 +34,43 @@ class Git_Updater_Upgrader
                 continue;
             }
 
-            $plugin_slug = $repo_config['plugin']; // This typically needs to be plugin-folder/plugin-file.php for WP to recognize it? 
-            // Actually, $transient->checked uses "folder/file.php".
-            // So our setting should ideally capture that, or we scan the dir to find the file.
-            // For now, let's assume the user enters "folder/file.php" or we approximate.
-            // Simplification: We iterate over $transient->checked (which are local plugins) and see if any match our "folder" configuration.
-
+            $plugin_slug = $repo_config['plugin'];
             $local_plugin_file = $this->find_plugin_file($plugin_slug);
             if (!$local_plugin_file) {
                 continue;
             }
 
-            // Check if this plugin is in our list
-            // $transient->checked[$local_plugin_file] is the version.
+            $current_version = isset($transient->checked[$local_plugin_file]) ? $transient->checked[$local_plugin_file] : '0.0.0';
+            $repo = $repo_config['repo'];
 
-            $remote_info = $this->api->get_latest_release($repo_config['repo']);
+            // Determine branch: use config or default to 'main' if not using releases
+            // If user explicitly wants "Releases" we should probably have a flag, but for now we default to branch 'main' 
+            // if no specific branch is set, matching "I just want the latest version of main".
+            $branch = !empty($repo_config['branch']) ? $repo_config['branch'] : 'main';
 
-            if ($remote_info && isset($remote_info->tag_name)) {
-                $new_version = ltrim($remote_info->tag_name, 'v');
-                $current_version = isset($transient->checked[$local_plugin_file]) ? $transient->checked[$local_plugin_file] : '0.0.0';
+            // Check remote version from file
+            // path on remote: usually same as basename of local file if inside the root
+            $remote_file_path = basename($local_plugin_file);
 
-                if (version_compare($current_version, $new_version, '<')) {
-                    // Found update!
-                    $obj = new stdClass();
-                    $obj->slug = $plugin_slug; // Or dirname?
-                    $obj->plugin = $local_plugin_file;
-                    $obj->new_version = $new_version;
-                    $obj->url = $remote_info->html_url;
+            // If the plugin is in a subdirectory in the repo (not common but possible), 
+            // we'd need more config. Assuming root for now.
 
-                    // Find zipball
-                    $package = $remote_info->zipball_url; // Default code zip
-                    // Or assets... check if there is a plugin zip asset?
-                    if (!empty($remote_info->assets)) {
-                        foreach ($remote_info->assets as $asset) {
-                            if (strpos($asset->name, '.zip') !== false) {
-                                $package = $asset->browser_download_url; // Or api url? For private repos browser_download_url might work if logged in, but for API...
-                                // For private repos, we often need to use the API URL with Accept header: application/octet-stream
-                                // But WP's upgrader just takes a URL.
-                                // We'll see how to handle this.
-                                break;
-                            }
-                        }
-                    }
+            $remote_version = $this->api->get_plugin_version($repo, $remote_file_path, $branch);
 
-                    $obj->package = $package;
+            if ($remote_version && version_compare($current_version, $remote_version, '<')) {
+                // Found update!
+                $obj = new stdClass();
+                $obj->slug = $local_plugin_file; // WP expects the plugin file path as slug sometimes, or dirname. 
+                // Actually for the 'response' array key, it's the file path. 
+                // The obj->slug should usually match the dirname or the unique slug.
+                $obj->plugin = $local_plugin_file;
+                $obj->new_version = $remote_version;
+                $obj->url = 'https://github.com/' . $repo;
 
-                    $transient->response[$local_plugin_file] = $obj;
-                }
+                // Package URL for branch
+                $obj->package = 'https://api.github.com/repos/' . $repo . '/zipball/' . $branch;
+
+                $transient->response[$local_plugin_file] = $obj;
             }
         }
 
