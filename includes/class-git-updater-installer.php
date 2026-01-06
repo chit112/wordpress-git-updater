@@ -130,7 +130,9 @@ class Git_Updater_Installer
             $moved = $wp_filesystem->move($source, $destination);
 
             // Cleanup temp dir via FS
-            $wp_filesystem->delete($temp_dir, true);
+            if ($moved) {
+                $wp_filesystem->delete($temp_dir, true);
+            }
         }
 
         // Fallback to PHP native if WP Filesystem failed or didn't init
