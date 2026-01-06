@@ -14,7 +14,8 @@ class Git_Updater_Settings
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_post_git_updater_install', array($this, 'handle_install'));
-        add_action('admin_post_git_updater_save_repos', array($this, 'handle_save_repos')); // Added hook
+        add_action('admin_post_git_updater_save_repos', array($this, 'handle_save_repos'));
+        add_action('admin_post_git_updater_force_update', array($this, 'handle_force_update')); // Added hook
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
     }
 
@@ -120,7 +121,8 @@ class Git_Updater_Settings
 
                 <?php
                 if (isset($_GET['message'])) {
-                    // ... (handled by admin_notices usually, but kept here for inline feedback if needed)
+                    $status_class = (isset($_GET['install_status']) && $_GET['install_status'] === 'error') ? 'notice-error' : 'notice-success';
+                    echo '<div class="notice ' . $status_class . ' is-dismissible"><p>' . esc_html(urldecode($_GET['message'])) . '</p></div>';
                 }
                 ?>
 
@@ -267,6 +269,22 @@ class Git_Updater_Settings
         exit;
     }
 
+    public function handle_force_update()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        check_admin_referer('git_updater_force_update');
+
+        // Force WP to check for updates
+        delete_site_transient('update_plugins');
+        wp_update_plugins();
+
+        wp_redirect(add_query_arg(array('page' => 'git-updater', 'message' => 'Update check triggered successfully.'), admin_url('options-general.php')));
+        exit;
+    }
+
     public function render_token_field()
     {
         $token = get_option('git_updater_token');
@@ -332,6 +350,10 @@ class Git_Updater_Settings
 
     public function render_repo_row($index, $repo)
     {
+        $check_update_url = wp_nonce_url(
+            admin_url('admin-post.php?action=git_updater_force_update'),
+            'git_updater_force_update'
+        );
         ?>
         <tr>
             <td>
@@ -351,6 +373,7 @@ class Git_Updater_Settings
                     value="<?php echo isset($repo['branch']) ? esc_attr($repo['branch']) : 'main'; ?>" />
             </td>
             <td>
+                <a href="<?php echo $check_update_url; ?>" class="button">Check Update</a>
                 <button class="button git-updater-remove-repo">Remove</button>
             </td>
         </tr>
