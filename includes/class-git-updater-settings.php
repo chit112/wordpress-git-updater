@@ -277,9 +277,13 @@ class Git_Updater_Settings
 
         check_admin_referer('git_updater_force_update');
 
+        Git_Updater_Logger::log('Manual update check triggered by user.');
+
         // Force WP to check for updates
         delete_site_transient('update_plugins');
         wp_update_plugins();
+
+        Git_Updater_Logger::log('Manual update check completed.');
 
         wp_redirect(add_query_arg(array('page' => 'git-updater', 'message' => 'Update check triggered successfully.'), admin_url('options-general.php')));
         exit;

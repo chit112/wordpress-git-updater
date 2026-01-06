@@ -37,6 +37,7 @@ class Git_Updater_Upgrader
             $plugin_slug = $repo_config['plugin'];
             $local_plugin_file = $this->find_plugin_file($plugin_slug);
             if (!$local_plugin_file) {
+                Git_Updater_Logger::log("Checking '{$plugin_slug}': Could not find local plugin file.");
                 continue;
             }
 
@@ -57,8 +58,11 @@ class Git_Updater_Upgrader
 
             $remote_version = $this->api->get_plugin_version($repo, $remote_file_path, $branch);
 
+            Git_Updater_Logger::log("Checking '{$plugin_slug}' ({$repo}@{$branch}): Local v{$current_version}, Remote v" . ($remote_version ?: 'N/A'));
+
             if ($remote_version && version_compare($current_version, $remote_version, '<')) {
                 // Found update!
+                Git_Updater_Logger::log("Update available for '{$plugin_slug}': v{$current_version} -> v{$remote_version}");
                 $obj = new stdClass();
                 $obj->slug = $local_plugin_file; // WP expects the plugin file path as slug sometimes, or dirname. 
                 // Actually for the 'response' array key, it's the file path. 

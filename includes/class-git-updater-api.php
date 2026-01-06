@@ -34,8 +34,9 @@ class Git_Updater_API
             ),
         );
 
-        if ($this->token) {
-            $args['headers']['Authorization'] = 'token ' . $this->token;
+        $token = $this->get_token();
+        if ($token) {
+            $args['headers']['Authorization'] = 'token ' . $token;
         }
 
         $response = wp_remote_get($url, $args);
@@ -78,8 +79,9 @@ class Git_Updater_API
             ),
         );
 
-        if ($this->token) {
-            $args['headers']['Authorization'] = 'token ' . $this->token;
+        $token = $this->get_token();
+        if ($token) {
+            $args['headers']['Authorization'] = 'token ' . $token;
         }
 
         $response = wp_remote_get($url, $args);
