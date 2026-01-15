@@ -334,13 +334,25 @@ class Git_Updater_Settings
 
         if (isset($_POST['git_updater_repos']) && is_array($_POST['git_updater_repos'])) {
             $cleaned_repos = array();
+            $seen_repos = array(); // For deduplication
+
             foreach ($_POST['git_updater_repos'] as $repo) {
                 if (!empty($repo['plugin']) && !empty($repo['repo'])) {
-                    $cleaned_repos[] = array(
-                        'plugin' => sanitize_text_field($repo['plugin']),
-                        'repo' => sanitize_text_field($repo['repo']),
-                        'branch' => sanitize_text_field($repo['branch'])
-                    );
+                    $plugin = sanitize_text_field($repo['plugin']);
+                    $repo_slug = sanitize_text_field($repo['repo']);
+                    $branch = sanitize_text_field($repo['branch']);
+
+                    // Create a unique key for deduplication
+                    $key = $plugin . '|' . $repo_slug;
+
+                    if (!isset($seen_repos[$key])) {
+                        $cleaned_repos[] = array(
+                            'plugin' => $plugin,
+                            'repo' => $repo_slug,
+                            'branch' => $branch
+                        );
+                        $seen_repos[$key] = true;
+                    }
                 }
             }
             update_option('git_updater_repos', $cleaned_repos);
@@ -378,7 +390,7 @@ class Git_Updater_Settings
             </td>
             <td>
                 <a href="<?php echo $check_update_url; ?>" class="button">Check Update</a>
-                <button class="button git-updater-remove-repo">Remove</button>
+                <button type="button" class="button git-updater-remove-repo">Remove</button>
             </td>
         </tr>
         <?php

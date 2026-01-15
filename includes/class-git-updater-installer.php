@@ -169,14 +169,26 @@ class Git_Updater_Installer
             $repos = array();
         }
 
-        $repos[] = array(
-            'plugin' => $target_slug, // Or find the main file? Ideally we assume slug is enough for folder mapping
-            'repo' => $repo,
-            'branch' => $branch
-        );
+        // Check for duplicates
+        $exists = false;
+        foreach ($repos as $existing_repo) {
+            if ($existing_repo['plugin'] === $target_slug && $existing_repo['repo'] === $repo) {
+                $exists = true;
+                break;
+            }
+        }
 
-        update_option('git_updater_repos', $repos);
-        Git_Updater_Logger::log("Installation successful! Registered $target_slug in settings.");
+        if (!$exists) {
+            $repos[] = array(
+                'plugin' => $target_slug, // Or find the main file? Ideally we assume slug is enough for folder mapping
+                'repo' => $repo,
+                'branch' => $branch
+            );
+            update_option('git_updater_repos', $repos);
+            Git_Updater_Logger::log("Installation successful! Registered $target_slug in settings.");
+        } else {
+            Git_Updater_Logger::log("Installation successful! Repo $target_slug already registered.");
+        }
 
         return true;
     }
