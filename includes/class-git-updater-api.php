@@ -67,6 +67,7 @@ class Git_Updater_API
         }
 
         if (preg_match('/Version:\s*(\S+)/i', $content, $matches)) {
+            Git_Updater_Logger::log("DEBUG: Found version '{$matches[1]}' in {$repo}/{$file_path}. Full match: '{$matches[0]}'");
             return $matches[1];
         }
 
