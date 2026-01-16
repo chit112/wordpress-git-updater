@@ -26,7 +26,10 @@ class Git_Updater_API
     {
         // https://api.github.com/repos/:owner/:repo/contents/:path?ref=:branch
         $url = 'https://api.github.com/repos/' . $repo . '/contents/' . $path;
-        $url = add_query_arg('ref', $branch, $url);
+        $url = add_query_arg(array(
+            'ref' => $branch,
+            't'   => time() // Cache busting
+        ), $url);
 
         $args = array(
             'headers' => array(
@@ -59,6 +62,7 @@ class Git_Updater_API
     {
         $content = $this->get_file_content($repo, $file_path, $branch);
         if (!$content) {
+            Git_Updater_Logger::log("Failed to fetch content from GitHub for {$repo}/{$file_path} on branch {$branch}");
             return false;
         }
 
@@ -66,6 +70,7 @@ class Git_Updater_API
             return $matches[1];
         }
 
+        Git_Updater_Logger::log("Could not find Version header in content of {$repo}/{$file_path}. Content start: " . substr($content, 0, 100));
         return false;
     }
 
