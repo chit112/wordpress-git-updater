@@ -9,9 +9,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     const row = e.target.closest('tr');
                     if (row) {
                         row.remove();
-                        // If we are in the form, we should probably submit or at least visual remove is done.
-                        // But wait, the table is inside a form that posts to admin-post.php
-                        // So removing the row means it won't be sent in $_POST['git_updater_repos'].
+                        // Automatically submit the form to save changes
+                        const form = document.querySelector('form[action*="git_updater_save_repos"]');
+                        if (form) {
+                            form.submit();
+                        }
                     }
                 }
             }
