@@ -317,11 +317,11 @@ class Git_Updater_Settings
                     <input type="text" name="git_updater_repos[][branch]" placeholder="Branch (default: main)"
                         value="<?php echo isset($repo['branch']) ? esc_attr($repo['branch']) : ''; ?>" class="regular-text"
                         style="width: 150px;" />
-                    <button class="button git-updater-remove-repo">Remove</button>
+                    <button type="button" class="button git-updater-remove-repo">Remove</button>
                 </div>
             <?php endforeach; ?>
         </div>
-        <button class="button" id="git-updater-add-repo">Add Repository</button>
+        <button type="button" class="button" id="git-updater-add-repo">Add Repository</button>
         <?php
     }
     public function handle_save_repos()
