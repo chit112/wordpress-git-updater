@@ -179,13 +179,17 @@ class Git_Updater_Installer
         }
 
         if (!$exists) {
+            // Fetch current commit SHA for version tracking
+            $commit_sha = $this->api->get_latest_commit_sha($repo, $branch);
+
             $repos[] = array(
-                'plugin' => $target_slug, // Or find the main file? Ideally we assume slug is enough for folder mapping
+                'plugin' => $target_slug,
                 'repo' => $repo,
-                'branch' => $branch
+                'branch' => $branch,
+                'commit_sha' => $commit_sha ? $commit_sha : ''
             );
             update_option('git_updater_repos', $repos);
-            Git_Updater_Logger::log("Installation successful! Registered $target_slug in settings.");
+            Git_Updater_Logger::log("Installation successful! Registered $target_slug with SHA: " . ($commit_sha ? substr($commit_sha, 0, 7) : 'N/A'));
         } else {
             Git_Updater_Logger::log("Installation successful! Repo $target_slug already registered.");
         }

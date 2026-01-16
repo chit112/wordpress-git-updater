@@ -19,6 +19,8 @@ class Git_Updater_Upgrader
         // Need to hook into installation process to handle authentication for private repos download
         // This is complex in WP. For private repos, the download URL is usually not directly accessible without headers.
         add_filter('upgrader_pre_download', array($this, 'add_download_headers'), 10, 3);
+        // Update stored SHA after successful upgrade
+        add_action('upgrader_process_complete', array($this, 'update_stored_sha_after_upgrade'), 10, 2);
     }
 
     public function check_for_updates($transient)
@@ -29,7 +31,7 @@ class Git_Updater_Upgrader
 
         $repos = get_option('git_updater_repos', array());
 
-        foreach ($repos as $repo_config) {
+        foreach ($repos as $index => $repo_config) {
             if (empty($repo_config['plugin']) || empty($repo_config['repo'])) {
                 continue;
             }
@@ -41,38 +43,37 @@ class Git_Updater_Upgrader
                 continue;
             }
 
-            $current_version = isset($transient->checked[$local_plugin_file]) ? $transient->checked[$local_plugin_file] : '0.0.0';
             $repo = $repo_config['repo'];
-
-            // Determine branch: use config or default to 'main' if not using releases
-            // If user explicitly wants "Releases" we should probably have a flag, but for now we default to branch 'main' 
-            // if no specific branch is set, matching "I just want the latest version of main".
             $branch = !empty($repo_config['branch']) ? $repo_config['branch'] : 'main';
+            $stored_sha = !empty($repo_config['commit_sha']) ? $repo_config['commit_sha'] : '';
 
-            // Check remote version from file
-            // path on remote: usually same as basename of local file if inside the root
-            $remote_file_path = basename($local_plugin_file);
+            // Fetch latest commit SHA from GitHub
+            $remote_sha = $this->api->get_latest_commit_sha($repo, $branch);
 
-            // If the plugin is in a subdirectory in the repo (not common but possible), 
-            // we'd need more config. Assuming root for now.
+            if (!$remote_sha) {
+                Git_Updater_Logger::log("Checking '{$plugin_slug}': Could not fetch remote SHA.");
+                continue;
+            }
 
-            $remote_version = $this->api->get_plugin_version($repo, $remote_file_path, $branch);
+            $short_stored = $stored_sha ? substr($stored_sha, 0, 7) : 'unknown';
+            $short_remote = substr($remote_sha, 0, 7);
 
-            Git_Updater_Logger::log("Checking '{$plugin_slug}' ({$repo}@{$branch}): Local v{$current_version}, Remote v" . ($remote_version ?: 'N/A'));
+            Git_Updater_Logger::log("Checking '{$plugin_slug}' ({$repo}@{$branch}): Local SHA {$short_stored}, Remote SHA {$short_remote}");
 
-            if ($remote_version && version_compare($current_version, $remote_version, '<')) {
-                // Found update!
-                Git_Updater_Logger::log("Update available for '{$plugin_slug}': v{$current_version} -> v{$remote_version}");
+            // Compare SHAs - if different, update is available
+            if ($stored_sha !== $remote_sha) {
+                Git_Updater_Logger::log("Update available for '{$plugin_slug}': {$short_stored} -> {$short_remote}");
+
                 $obj = new stdClass();
-                $obj->slug = $local_plugin_file; // WP expects the plugin file path as slug sometimes, or dirname. 
-                // Actually for the 'response' array key, it's the file path. 
-                // The obj->slug should usually match the dirname or the unique slug.
+                $obj->slug = dirname($local_plugin_file);
                 $obj->plugin = $local_plugin_file;
-                $obj->new_version = $remote_version;
+                $obj->new_version = $short_remote; // Display short SHA as version
                 $obj->url = 'https://github.com/' . $repo;
-
-                // Package URL for branch
                 $obj->package = 'https://api.github.com/repos/' . $repo . '/zipball/' . $branch;
+
+                // Store the new SHA so we can update it after successful upgrade
+                $obj->git_updater_new_sha = $remote_sha;
+                $obj->git_updater_repo_index = $index;
 
                 $transient->response[$local_plugin_file] = $obj;
             }
@@ -139,5 +140,50 @@ class Git_Updater_Upgrader
         }
 
         return $args;
+    }
+
+    /**
+     * Update the stored commit SHA after a successful plugin upgrade.
+     *
+     * @param WP_Upgrader $upgrader Upgrader instance.
+     * @param array       $options  Update options.
+     */
+    public function update_stored_sha_after_upgrade($upgrader, $options)
+    {
+        // Only handle plugin updates
+        if ($options['action'] !== 'update' || $options['type'] !== 'plugin') {
+            return;
+        }
+
+        if (empty($options['plugins'])) {
+            return;
+        }
+
+        $repos = get_option('git_updater_repos', array());
+        $updated = false;
+
+        foreach ($options['plugins'] as $plugin_file) {
+            // Find this plugin in our monitored repos
+            foreach ($repos as $index => $repo_config) {
+                $local_plugin_file = $this->find_plugin_file($repo_config['plugin']);
+
+                if ($local_plugin_file === $plugin_file) {
+                    // This is one of our monitored plugins - fetch and store the new SHA
+                    $branch = !empty($repo_config['branch']) ? $repo_config['branch'] : 'main';
+                    $new_sha = $this->api->get_latest_commit_sha($repo_config['repo'], $branch);
+
+                    if ($new_sha) {
+                        $repos[$index]['commit_sha'] = $new_sha;
+                        $updated = true;
+                        Git_Updater_Logger::log("Updated stored SHA for '{$repo_config['plugin']}' to " . substr($new_sha, 0, 7));
+                    }
+                    break;
+                }
+            }
+        }
+
+        if ($updated) {
+            update_option('git_updater_repos', $repos);
+        }
     }
 }

@@ -15,7 +15,8 @@ class Git_Updater_Settings
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_post_git_updater_install', array($this, 'handle_install'));
         add_action('admin_post_git_updater_save_repos', array($this, 'handle_save_repos'));
-        add_action('admin_post_git_updater_force_update', array($this, 'handle_force_update')); // Added hook
+        add_action('admin_post_git_updater_force_update', array($this, 'handle_force_update'));
+        add_action('admin_post_git_updater_sync_shas', array($this, 'handle_sync_shas'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
     }
 
@@ -191,9 +192,16 @@ class Git_Updater_Settings
                             ?>
                         </tbody>
                     </table>
+                    <?php
+                    $sync_shas_url = wp_nonce_url(
+                        admin_url('admin-post.php?action=git_updater_sync_shas'),
+                        'git_updater_sync_shas'
+                    );
+                    ?>
                     <p>
                         <!-- Manual add removed for safety -->
                         <input type="submit" name="btn_save_repos" class="button button-primary" value="Save Changes" />
+                        <a href="<?php echo esc_url($sync_shas_url); ?>" class="button" title="Fetch and store current commit SHAs for all monitored plugins">🔄 Sync SHAs</a>
                     </p>
                 </form>
             </div>
@@ -286,6 +294,39 @@ class Git_Updater_Settings
         Git_Updater_Logger::log('Manual update check completed.');
 
         wp_redirect(add_query_arg(array('page' => 'git-updater', 'message' => 'Update check triggered successfully.'), admin_url('options-general.php')));
+        exit;
+    }
+
+    public function handle_sync_shas()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        check_admin_referer('git_updater_sync_shas');
+
+        $repos = get_option('git_updater_repos', array());
+        $api = new Git_Updater_API();
+        $synced = 0;
+
+        foreach ($repos as $index => $repo_config) {
+            // Only sync if SHA is missing or empty
+            if (empty($repo_config['commit_sha'])) {
+                $branch = !empty($repo_config['branch']) ? $repo_config['branch'] : 'main';
+                $sha = $api->get_latest_commit_sha($repo_config['repo'], $branch);
+
+                if ($sha) {
+                    $repos[$index]['commit_sha'] = $sha;
+                    $synced++;
+                    Git_Updater_Logger::log("Synced SHA for '{$repo_config['plugin']}': " . substr($sha, 0, 7));
+                }
+            }
+        }
+
+        update_option('git_updater_repos', $repos);
+        Git_Updater_Logger::log("SHA sync complete. Synced {$synced} repositories.");
+
+        wp_redirect(add_query_arg(array('page' => 'git-updater', 'message' => "Synced SHAs for {$synced} repositories."), admin_url('options-general.php')));
         exit;
     }
 

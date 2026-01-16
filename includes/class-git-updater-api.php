@@ -105,4 +105,45 @@ class Git_Updater_API
 
         return false;
     }
+
+    /**
+     * Get the latest commit SHA for a branch.
+     *
+     * @param string $repo   Repository in owner/repo format.
+     * @param string $branch Branch name.
+     * @return string|false  The commit SHA or false on failure.
+     */
+    public function get_latest_commit_sha($repo, $branch)
+    {
+        $url = 'https://api.github.com/repos/' . $repo . '/commits/' . $branch;
+        $url = add_query_arg('t', time(), $url); // Cache busting
+
+        $args = array(
+            'headers' => array(
+                'Accept' => 'application/vnd.github.v3+json',
+            ),
+        );
+
+        $token = $this->get_token();
+        if ($token) {
+            $args['headers']['Authorization'] = 'token ' . $token;
+        }
+
+        $response = wp_remote_get($url, $args);
+
+        if (is_wp_error($response)) {
+            Git_Updater_Logger::log("Failed to fetch commit SHA for {$repo}@{$branch}: " . $response->get_error_message());
+            return false;
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body);
+
+        if (json_last_error() === JSON_ERROR_NONE && !empty($data->sha)) {
+            return $data->sha;
+        }
+
+        Git_Updater_Logger::log("Invalid response when fetching commit SHA for {$repo}@{$branch}");
+        return false;
+    }
 }
