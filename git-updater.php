@@ -3,7 +3,7 @@
  * Plugin Name:       Git Updater
  * Plugin URI:        https://github.com/chit112/wordpress-git-updater
  * Description:       A plugin to update other WordPress plugins directly from GitHub repositories (private or public).
- * Version:           1.0.0
+ * Version:           1.0.1
  * Author:            Rune Brimer
  * Author URI:        https://github.com/chit112
  * License:           GPL v2 or later
@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-define('GIT_UPDATER_VERSION', '1.0.0');
+define('GIT_UPDATER_VERSION', '1.0.1');
 define('GIT_UPDATER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
