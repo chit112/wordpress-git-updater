@@ -76,7 +76,7 @@ class Git_Updater_Settings
         $this->options = get_option('git_updater_token');
         ?>
         <div class="wrap">
-            <h1>🚀 Git Updater</h1>
+            <h1>🚀 Git Updater <small style="font-size: 0.5em;">v<?php echo esc_html(GIT_UPDATER_VERSION); ?></small></h1>
             <p>
                 Manage your private GitHub plugins with ease.
                 <a href="https://github.com/chit112/wordpress-git-updater" target="_blank">📖 Documentation</a> |
