@@ -13,7 +13,7 @@ class Git_Updater_Installer
         $this->api = $api;
     }
 
-    public function install($repo, $branch, $target_slug)
+    public function install($repo, $branch, $target_slug, $overwrite = false)
     {
         Git_Updater_Logger::log("Starting installation: $repo, Branch: $branch, Target: $target_slug");
 
@@ -28,8 +28,12 @@ class Git_Updater_Installer
         // Check if target directory already exists
         $target_path = WP_PLUGIN_DIR . '/' . $target_slug;
         if (file_exists($target_path)) {
-            Git_Updater_Logger::log("Error: Target folder already exists at $target_path");
-            return new WP_Error('folder_exists', 'Target folder already exists: ' . $target_slug);
+            if (!$overwrite) {
+                Git_Updater_Logger::log("Error: Target folder already exists at $target_path");
+                return new WP_Error('folder_exists', 'Target folder already exists: ' . $target_slug);
+            } else {
+                Git_Updater_Logger::log("Target folder exists, but overwrite is requested. Will replace: $target_path");
+            }
         }
 
         // 2. Get Download URL
@@ -125,6 +129,12 @@ class Git_Updater_Installer
         Git_Updater_Logger::log("Attempting move from $source to $destination");
 
         if ($fs_init && !empty($wp_filesystem) && is_object($wp_filesystem)) {
+            // Delete existing if overwrite is true
+            if ($overwrite && $wp_filesystem->exists($destination)) {
+                Git_Updater_Logger::log("Removing existing folder via WP_Filesystem: $destination");
+                $wp_filesystem->delete($destination, true);
+            }
+
             // Try WP Filesystem
             Git_Updater_Logger::log("Using WP_Filesystem->move");
             $moved = $wp_filesystem->move($source, $destination);
@@ -137,6 +147,12 @@ class Git_Updater_Installer
 
         // Fallback to PHP native if WP Filesystem failed or didn't init
         if (!$moved) {
+            // Delete existing if overwrite is true (native)
+            if ($overwrite && file_exists($destination)) {
+                Git_Updater_Logger::log("Removing existing folder via native rmdir: $destination");
+                $this->recursive_rmdir($destination);
+            }
+
             Git_Updater_Logger::log("WP_Filesystem failed/not available. Trying native rename.");
             if (@rename($source, $destination)) {
                 $moved = true;

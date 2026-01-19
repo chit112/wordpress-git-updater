@@ -21,7 +21,6 @@ define('GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-settings.php';
 require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-logger.php';
 require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-api.php';
-require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-upgrader.php';
 require_once GIT_UPDATER_PLUGIN_DIR . 'includes/class-git-updater-installer.php';
 
 class Git_Updater
@@ -46,7 +45,6 @@ class Git_Updater
 	{
 		$settings = new Git_Updater_Settings();
 		$api = new Git_Updater_API();
-		$upgrader = new Git_Updater_Upgrader($settings, $api);
 		$installer = new Git_Updater_Installer($api);
 		$settings->set_installer($installer);
 	}
