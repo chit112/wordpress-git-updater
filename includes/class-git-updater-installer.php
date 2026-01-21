@@ -210,6 +210,12 @@ class Git_Updater_Installer
             Git_Updater_Logger::log("Installation successful! Repo $target_slug already registered.");
         }
 
+        // Force WP to refresh plugin cache
+        if (function_exists('wp_clean_plugins_cache')) {
+            wp_clean_plugins_cache();
+            Git_Updater_Logger::log("Cleared WordPress plugins cache.");
+        }
+
         return true;
     }
 

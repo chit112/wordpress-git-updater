@@ -382,7 +382,6 @@ class Git_Updater_Settings
             </td>
             <td>
                 <a href="<?php echo $force_reinstall_url; ?>" class="button"
-                    onclick="return confirm('This will reinstall the plugin from GitHub. Continue?');"
                     title="Reinstall plugin from latest GitHub code">Update Plugin</a>
                 <button type="button" class="button git-updater-remove-repo">Remove</button>
             </td>
